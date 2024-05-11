@@ -15,8 +15,17 @@ datasource db {
 }
 
 model Book {
-  id    Int     @id @default(autoincrement())
-  judul    String
-  halaman  Int
-  author   String
+  id        Int     @id @default(autoincrement())
+  judul     String
+  halaman   Int
+  author    String
+  deskripsi String
+  uploader  String
+
+}
+
+model User {
+  id Int    @id @default(autoincrement())
+  email     String @unique
+  password  String
 }
