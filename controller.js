@@ -30,48 +30,41 @@ async function register(req, res) {
   }
 }
 async function login(req, res) {
-  // validasi email
-  if (!req.body.email) {
-    return res.status(400).send({ message: 'Email diperlukan' });
+  // Validasi email dan password
+  if (!req.body.email || !req.body.password) {
+    return res.status(400).send({ message: 'Email dan password diperlukan' });
   }
-  // validasi password
-  if (!req.body.password) {
-    return res.status(400).send({ message: 'Password diperlukan' });
-  }
-
   const { email, password } = req.body;
-
   try {
-    // cari user dengan email yang diberikan
+    // Cari user berdasarkan email
     const user = await prisma.user.findUnique({
       where: {
-        email: email,
+        email,
       },
     });
 
-    // jika user tidak ditemukan
+    // Jika user tidak ditemukan
     if (!user) {
-      return res.status(401).send({ message: 'Email atau password salah' });
+      return res.status(404).send({ message: 'Email atau password salah' });
     }
-
-    // bandingkan password yang dihash dengan yang disimpan di database
+    // Bandingkan password yang di-hash dengan password yang dimasukkan
     const passwordMatch = await bcrypt.compare(password, user.password);
-
-    // jika password tidak cocok
+    // Jika password tidak cocok
     if (!passwordMatch) {
       return res.status(401).send({ message: 'Email atau password salah' });
     }
-
-    // jika email dan password cocok, buat JWT token
-    const accessToken = jwt.sign({ userId: user.id, email: user.email }, 'rahasia', { expiresIn: '1h' });
-
-    return res.status(200).send({ accessToken: accessToken });
+    // Generate JWT
+    const accessToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      // kita ubah disini
+      expiresIn: '1h',
+    }); // Menggunakan secretKey untuk signing token, disarankan menggunakan secret yang kuat dan disimpan di lingkungan yang aman.
+    // Kirim accessToken sebagai respons
+    return res.status(200).send({ accessToken });
   } catch (error) {
-    console.error(error);
-    return res.status(500).send({ message: 'Internal Server Error' });
+    console.error('Error:', error);
+    res.status(500).send({ message: 'Internal Server Error' });
   }
 }
-
 async function getAllBooks(req, res) {
   // read all book table
   try {
@@ -83,9 +76,26 @@ async function getAllBooks(req, res) {
 }
 
 async function createBook(req, res) {
+  const { userId } = req.user; // Pastikan req.user berisi userId yang valid
   try {
     // Mengambil data buku dari body permintaan
-    const { judul, halaman, author } = req.body;
+    const { judul, halaman, author, deskripsi, uploader } = req.body;
+
+    // Validasi input, pastikan tidak ada properti yang undefined
+    if (!judul || !halaman || !author || !deskripsi || !uploader) {
+      return res.status(400).send({ message: 'Semua field harus diisi.' });
+    }
+
+    // Periksa apakah userId ada di tabel User
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).send({ message: 'User tidak ditemukan.' });
+    }
 
     // Menambahkan buku ke database menggunakan Prisma Client
     const newBook = await prisma.book.create({
@@ -93,6 +103,9 @@ async function createBook(req, res) {
         judul,
         halaman,
         author,
+        deskripsi,
+        uploader,
+        userId,
       },
     });
 
@@ -101,7 +114,9 @@ async function createBook(req, res) {
   } catch (error) {
     // Menangani kesalahan yang mungkin terjadi saat menambahkan buku
     console.error('Error adding book:', error);
-    res.status(500).send({ message: 'Gagal menambahkan books' });
+    res.status(500).send({ message: 'Gagal menambahkan buku' });
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
@@ -124,4 +139,43 @@ async function deleteBookById(req, res) {
     res.status(500).send({ message: 'Gagal menghapus buku' });
   }
 }
-module.exports = { getAllBooks, createBook, deleteBookById, register, login };
+
+async function updateBookById(req, res) {
+  const { judul, halaman, author, deskripsi, uploader } = req.body;
+  if (!judul || !halaman || !author || !deskripsi || !uploader) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const { id } = req.params;
+
+  const { userId } = req.user; // tambah ini
+
+  try {
+    const book = await prisma.book.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    const updatedBook = await prisma.book.update({
+      where: { id: parseInt(id) },
+      data: {
+        judul,
+        halaman: Number(halaman),
+        author,
+        deskripsi,
+        uploader,
+        userId, // dan ini
+      },
+    });
+
+    // Kirim response status 200 dengan data buku yang telah diperbarui
+    return res.status(200).json(updatedBook);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+module.exports = { getAllBooks, createBook, updateBookById, deleteBookById, register, login };

@@ -15,17 +15,19 @@ datasource db {
 }
 
 model Book {
-  id        Int     @id @default(autoincrement())
+  id        Int    @id @default(autoincrement())
   judul     String
   halaman   Int
   author    String
   deskripsi String
   uploader  String
-
+  userId    Int
+  user      User   @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id Int    @id @default(autoincrement())
-  email     String @unique
-  password  String
+  id       Int    @id @default(autoincrement())
+  email    String @unique
+  password String
+  books    Book[]
 }
