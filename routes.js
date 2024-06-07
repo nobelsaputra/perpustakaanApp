@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAllBooks, createBook, updateBookById, deleteBookById, register, login } = require('./controller');
+const { getAllBooks, createBook, updateBookById, deleteBookById, register, login, createUserProfile, getUserProfile, updateUserProfile, likeOrDislike } = require('./controller');
 const route = express.Router();
 
 route.post('/register', register);
@@ -25,6 +25,12 @@ route.get('/books', getAllBooks);
 route.post('/books/menambah', createBook);
 route.post('/books/mengubah/:id', updateBookById);
 route.delete('/books/:id', deleteBookById);
+
+route.post('/profile', createUserProfile);
+route.get('/profile', getUserProfile);
+route.put('/profile', updateUserProfile);
+
+route.post('/like/:bookId', likeOrDislike);
 
 module.exports = route;
 const jwt = require('jsonwebtoken');

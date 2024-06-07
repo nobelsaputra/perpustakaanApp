@@ -178,4 +178,108 @@ async function updateBookById(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-module.exports = { getAllBooks, createBook, updateBookById, deleteBookById, register, login };
+
+async function createUserProfile(req, res) {
+  // validate req body from user
+  if (!req.body.nama) {
+    return res.status(400).send({ message: 'Name diperlukan' });
+  }
+  if (!req.body.alamat) {
+    return res.status(400).send({ message: 'Alamat diperlukan' });
+  }
+  if (!req.body.bio) {
+    return res.status(400).send({ message: 'Bio diperlukan' });
+  }
+
+  const { nama, alamat, bio } = req.body;
+  const { userId } = req.user;
+  try {
+    const newProfile = await prisma.profile.create({
+      data: {
+        nama,
+        alamat,
+        bio,
+        userId,
+      },
+    });
+    res.status(201).send(newProfile);
+  } catch (error) {
+    console.log('create Profile Error', error);
+    res.status(500).send({ message: 'gagal menambahkan profile' });
+  }
+}
+
+async function getUserProfile(req, res) {
+  const { userId } = req.user;
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: {
+        userId,
+      },
+    });
+    res.status(200).send(profile);
+  } catch (error) {
+    res.status(500).send({ message: 'gagal mendapatkan profile' });
+  }
+}
+
+async function updateUserProfile(req, res) {
+  const { userId } = req.user; // Mengambil userId dari token yang terverifikasi
+  const { nama, alamat, bio } = req.body; // Data profil baru dari permintaan
+
+  if (!nama || !alamat || !bio) {
+    return res.status(400).json({ error: 'Semua field (nama, alamat, bio) harus diisi' });
+  }
+
+  try {
+    const updatedProfile = await prisma.profile.update({
+      where: { userId: userId },
+      data: { nama, alamat, bio },
+    });
+
+    res.json(updatedProfile);
+  } catch (error) {
+    res.status(500).json({ error: 'Terjadi kesalahan saat mengupdate profil' });
+  }
+}
+
+async function likeOrDislike(req, res) {
+  try {
+    const userId = req.user.id;
+    const bookId = parseInt(req.params.bookId);
+
+    // Cek apakah buku sudah dilike oleh user
+    const like = await prisma.like.findUnique({
+      where: {
+        userId_bookId: {
+          bookId: bookId,
+          userId: userId,
+        },
+      },
+    });
+
+    if (!like) {
+      // Jika buku belum dilike, tambahkan like
+      await prisma.like.create({
+        data: {
+          userId: userId,
+          bookId: bookId,
+        },
+      });
+      res.status(200).json({ message: "Buku telah dilike." });
+    } else {
+      // Jika buku sudah dilike, hapus like
+      await prisma.like.delete({
+        where: {
+          id: like.id,
+        },
+      });
+      res.status(200).json({ message: "Buku telah di-dislike." });
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Terjadi kesalahan saat memproses like/dislike." });
+  }
+}
+
+module.exports = { likeOrDislike, updateUserProfile, getUserProfile, createUserProfile, getAllBooks, createBook, updateBookById, deleteBookById, register, login };

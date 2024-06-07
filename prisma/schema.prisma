@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,19 +9,41 @@ datasource db {
 }
 
 model Book {
-  id        Int    @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   judul     String
   halaman   Int
   author    String
   deskripsi String
   uploader  String
-  userId    Int
-  user      User   @relation(fields: [userId], references: [id])
+  userId    Int     
+  user      User    @relation(fields: [userId], references: [id]) 
+  likes     Like[]
 }
-
+ 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  password String
-  books    Book[]
+  id        Int    @id @default(autoincrement())
+  email     String @unique
+  password  String
+  books     Book[]
+  profile   Profile?
+  likes     Like[]
+}
+ 
+model Profile {
+  id     Int  @id @default(autoincrement())
+  nama   String
+  alamat String
+  bio    String 
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique // relation scalar field (used in the `@relation` attribute above)
+}
+ 
+model Like {
+  id     Int  @id @default(autoincrement())
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+  book   Book @relation(fields: [bookId], references: [id])
+  bookId Int
+ 
+  @@unique([userId, bookId])
 }
